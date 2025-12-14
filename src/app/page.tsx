@@ -45,10 +45,9 @@ export default function Home() {
   const [status, setStatus] = useState<Status | null>(null);
   const [isPending, startTransition] = useTransition();
   const [gameMeta, setGameMeta] = useState<LobbyGame | null>(null);
-  const [homeName, setHomeName] = useState("Home");
-  const [awayName, setAwayName] = useState("Away");
   const STORAGE_KEY = "gridiron-lobby";
   const [lockPending, setLockPending] = useState(false);
+  const [activeTab, setActiveTab] = useState<"join" | "host">("join");
 
   // Restore lobby from localStorage if present.
   useEffect(() => {
@@ -165,8 +164,6 @@ export default function Home() {
       if (!isMounted) return;
       if (error || !data) return;
       setGameMeta(data);
-      setHomeName(data.home_team_name || "Home");
-      setAwayName(data.away_team_name || "Away");
     };
 
     loadGame();
@@ -179,11 +176,12 @@ export default function Home() {
         (payload) => {
           const newGame = payload.new as LobbyGame;
           setGameMeta(newGame);
-          setHomeName(newGame.home_team_name || "Home");
-          setAwayName(newGame.away_team_name || "Away");
           if (!["lobby_open", "in_progress"].includes(newGame.status)) {
             localStorage.removeItem(STORAGE_KEY);
             setActiveLobby(null);
+          }
+          if (newGame.status === "in_progress" && (activeLobby?.code || newGame.code)) {
+            router.push(`/trivia/${activeLobby?.code || newGame.code}`);
           }
         },
       )
@@ -239,17 +237,6 @@ export default function Home() {
     await updatePlayerSideAction(playerId, activeLobby.gameId, myPlayer.id, side);
   };
 
-  const handleTeamNamesSave = async () => {
-    if (!activeLobby?.gameId || !myPlayer) return;
-    await updateTeamNamesAction(
-      activeLobby.gameId,
-      myPlayer.id,
-      homeName.trim() || "Home",
-      awayName.trim() || "Away",
-    );
-    setStatus({ type: "success", message: "Team names updated." });
-  };
-
   const handleStartGame = async () => {
     if (!activeLobby?.gameId || !myPlayer) return;
     const result = await startGameAction(activeLobby.gameId, myPlayer.id);
@@ -257,7 +244,7 @@ export default function Home() {
       setStatus({ type: "success", message: "Game started!" });
       const code = activeLobby.code || gameMeta?.code;
       if (code) {
-        router.push(`/game/${code}`);
+        router.push(`/trivia/${code}`);
       }
     } else {
       setStatus({ type: "error", message: result.error });
@@ -299,31 +286,26 @@ export default function Home() {
     setLockPending(false);
   };
 
-  const participants = players.filter((p) => p.side === "home" || p.side === "away");
   const rosterPlayers = players.filter((p) => p.role !== "ref");
-  const homePlayers = participants.filter((p) => p.side === "home");
-  const awayPlayers = participants.filter((p) => p.side === "away");
-  const allReady = participants.length > 0 && participants.every((p) => p.ready);
-  const canStart = gameMeta?.status === "lobby_open" && homePlayers.length > 0 && awayPlayers.length > 0 && allReady;
+  const allReady = rosterPlayers.length > 0 && rosterPlayers.every((p) => p.ready);
+  const canStart = gameMeta?.status === "lobby_open" && allReady;
 
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-to-br from-slate-900 via-slate-950 to-black px-6 py-12 text-slate-50">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-10 rounded-3xl border border-slate-800/60 bg-slate-900/70 p-10 shadow-2xl shadow-slate-950/40 backdrop-blur">
+    <main className="flex min-h-screen flex-col bg-gradient-to-br from-white via-[#f2f5fb] to-[#e5f2ff] px-6 py-12 text-slate-900">
+      <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-10 overflow-hidden rounded-3xl border border-slate-200 bg-white p-10 shadow-[0_30px_120px_rgba(15,23,42,0.15)] backdrop-blur">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(251,191,36,0.14),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(52,211,153,0.12),transparent_30%)]" />
         <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-emerald-400">
-            Gridiron Trivia
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold leading-tight text-slate-50">
-            Start or join a lobby
+          <p className="text-sm uppercase tracking-[0.5em] text-cyan-600">Live Trivia</p>
+          <h1 className="mt-3 text-5xl font-extrabold leading-tight text-slate-900 sm:text-6xl">
+            Join or host a game
           </h1>
-          <p className="mt-3 max-w-2xl text-sm text-slate-300/80">
-            Create a lobby to host a game or join an existing one with a code.
-            We&apos;ll hook this up to the main field view next.
+          <p className="mt-5 max-w-3xl text-lg text-slate-700 sm:text-xl">
+            Big-screen friendly lobby for your next trivia session. Create a room, share the code, and get everyone ready.
           </p>
         </div>
 
         {activeLobby ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-700/50 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-100">
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-base font-semibold text-emerald-900 shadow-[0_10px_40px_rgba(16,185,129,0.1)]">
             <span>
               In lobby <span className="font-semibold">{activeLobby.code || gameMeta?.code}</span>. Share this code with
               teammates.
@@ -331,10 +313,10 @@ export default function Home() {
             {myPlayer && myPlayer.role !== "ref" ? (
               <button
                 onClick={toggleReady}
-                className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${
+                className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
                   myPlayer.ready
-                    ? "border-emerald-400 bg-emerald-500/20 text-emerald-50 hover:bg-emerald-500/30"
-                    : "border-slate-500 text-slate-100 hover:bg-slate-800/70"
+                    ? "border-emerald-400 bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                    : "border-slate-400 text-slate-800 hover:bg-slate-200"
                 }`}
               >
                 {myPlayer.ready ? "Ready" : "Set ready"}
@@ -342,14 +324,14 @@ export default function Home() {
             ) : null}
             <button
               onClick={handleLeave}
-              className="rounded-lg border border-emerald-500/60 px-3 py-1 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-500/10"
+              className="rounded-lg border border-emerald-400/60 px-3 py-1 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
             >
               Leave lobby
             </button>
             {gameMeta?.status === "in_progress" && (activeLobby.code || gameMeta.code) ? (
               <button
-                onClick={() => router.push(`/game/${activeLobby.code || gameMeta.code}`)}
-                className="rounded-lg border border-amber-400/70 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20"
+                onClick={() => router.push(`/trivia/${activeLobby.code || gameMeta.code}`)}
+                className="rounded-lg border border-amber-400/70 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900 transition hover:bg-amber-200"
               >
                 Go to game view
               </button>
@@ -358,61 +340,39 @@ export default function Home() {
         ) : null}
 
         {activeLobby && gameMeta && isRef ? (
-          <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-6 md:grid-cols-2">
-            <div>
-              <div className="text-sm font-semibold text-slate-100">Team names</div>
-              <div className="mt-3 flex flex-col gap-3">
-                <label className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                  Home
-                  <input
-                    className="mt-2 w-full rounded-lg border border-slate-700/70 bg-slate-950/50 px-3 py-2 text-base text-slate-50 outline-none ring-emerald-500/30 transition focus:border-emerald-400/80 focus:ring"
-                    value={homeName}
-                    onChange={(e) => setHomeName(e.target.value)}
-                  />
-                </label>
-                <label className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                  Away
-                  <input
-                    className="mt-2 w-full rounded-lg border border-slate-700/70 bg-slate-950/50 px-3 py-2 text-base text-slate-50 outline-none ring-emerald-500/30 transition focus:border-emerald-400/80 focus:ring"
-                    value={awayName}
-                    onChange={(e) => setAwayName(e.target.value)}
-                  />
-                </label>
-              </div>
-              <button
-                onClick={handleTeamNamesSave}
-                className="mt-3 inline-flex items-center justify-center rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400"
-              >
-                Save team names
-              </button>
-            </div>
-            <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 p-4">
+          <div className="flex flex-col gap-3 rounded-2xl border border-cyan-300/60 bg-white p-6 shadow-[0_12px_50px_rgba(59,130,246,0.15)]">
+            <div className="flex flex-wrap items-center gap-3">
               <div>
-                <div className="text-sm font-semibold text-slate-100">Game status</div>
-                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">
-                {gameMeta.status === "lobby_open" ? "Lobby open" : gameMeta.status}
-              </p>
-              <p className="mt-2 text-xs text-slate-300">
-                Home: {homePlayers.length} · Away: {awayPlayers.length}
-              </p>
-              <p className="text-xs text-slate-300">
-                Ready: {participants.filter((p) => p.ready).length}/{participants.length}
-              </p>
+                <div className="text-sm font-semibold text-slate-900">Lobby status</div>
+                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
+                  {gameMeta.status === "lobby_open" ? "Lobby open" : gameMeta.status}
+                </p>
+                <p className="text-xs text-slate-600">
+                  Players: {rosterPlayers.length} · Ready: {rosterPlayers.filter((p) => p.ready).length}/
+                  {rosterPlayers.length}
+                </p>
+                <p className="text-xs text-slate-600">Lock lobby to prevent new joins.</p>
               </div>
-              <button
-                onClick={toggleLobbyLock}
-                disabled={lockPending}
-                className="inline-flex items-center justify-center rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-50"
-              >
-                {gameMeta.lobby_locked ? "Unlock lobby" : "Lock lobby"}
-              </button>
-              <button
-                onClick={handleStartGame}
-                disabled={!canStart}
-                className="inline-flex items-center justify-center rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Start game
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={toggleLobbyLock}
+                  disabled={lockPending}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                    gameMeta.lobby_locked
+                      ? "border border-amber-400/60 bg-amber-100 text-amber-900 hover:bg-amber-200"
+                      : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                  }`}
+                >
+                  {gameMeta.lobby_locked ? "Locked" : "Lock lobby"}
+                </button>
+                <button
+                  onClick={handleStartGame}
+                  disabled={!canStart}
+                  className="rounded-lg bg-emerald-400 px-3 py-2 text-xs font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:opacity-50"
+                >
+                  Start game
+                </button>
+              </div>
             </div>
           </div>
         ) : null}
@@ -421,15 +381,15 @@ export default function Home() {
           <div
             className={`rounded-xl border px-4 py-3 text-sm ${
               status.type === "success"
-                ? "border-emerald-700 bg-emerald-500/10 text-emerald-100"
-                : "border-rose-700 bg-rose-500/10 text-rose-100"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                : "border-rose-300 bg-rose-50 text-rose-900"
             }`}
           >
             {status.message}
             {gameMeta?.status === "in_progress" && (activeLobby?.code || gameMeta?.code) ? (
               <button
-                onClick={() => router.push(`/game/${activeLobby?.code || gameMeta?.code}`)}
-                className="ml-3 inline-flex items-center rounded-md border border-emerald-500/70 px-3 py-1 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-500/10"
+                onClick={() => router.push(`/trivia/${activeLobby?.code || gameMeta?.code}`)}
+                className="ml-3 inline-flex items-center rounded-md border border-emerald-400 px-3 py-1 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
               >
                 Open game view
               </button>
@@ -438,168 +398,158 @@ export default function Home() {
         ) : null}
 
         {activeLobby ? (
-          <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 px-4 py-3 text-xs text-slate-200">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-800">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-slate-100">Ready check</span>
+              <span className="font-semibold text-slate-900">Ready check</span>
               <span>
-                Home: {homePlayers.length} | Away: {awayPlayers.length} | Ready:{" "}
-                {players.filter((p) => p.ready).length}/{players.length}
+                Players: {rosterPlayers.length} | Ready: {players.filter((p) => p.ready).length}/{players.length}
               </span>
               {!canStart ? (
-                <span className="text-amber-300">
-                  Need {homePlayers.length === 0 ? "home player " : ""}{awayPlayers.length === 0 ? "away player " : ""}
-                  {!allReady ? "all players ready" : ""}
-                </span>
+                <span className="text-amber-700">All players must ready up to start.</span>
               ) : (
-                <span className="text-emerald-300">All set</span>
+                <span className="text-emerald-700">All set</span>
               )}
             </div>
           </div>
         ) : null}
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <form
-            onSubmit={handleCreate}
-            className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-6"
-          >
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]" />
-              Host a lobby
+        {!activeLobby ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_12px_40px_rgba(14,165,233,0.15)]">
+            <div className="mb-4 h-1 rounded-full bg-gradient-to-r from-cyan-400 via-emerald-300 to-amber-300" />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setActiveTab("join")}
+                className={`rounded-full px-7 py-3 text-xl font-semibold ${
+                  activeTab === "join" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Join a game
+              </button>
+              <button
+                onClick={() => setActiveTab("host")}
+                className={`rounded-full px-7 py-3 text-xl font-semibold ${
+                  activeTab === "host" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Host a game
+              </button>
             </div>
-            <label className="text-sm text-slate-300">
-              Display name
-              <input
-                className="mt-2 w-full rounded-lg border border-slate-700/70 bg-slate-950/50 px-3 py-2 text-base text-slate-50 outline-none ring-emerald-500/30 transition focus:border-emerald-400/80 focus:ring"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                placeholder="Coach Taylor"
-                required
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="mt-2 inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:opacity-50"
-            >
-              {isPending ? "Creating..." : "Create lobby"}
-            </button>
-          </form>
-
-          <form
-            onSubmit={handleJoin}
-            className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-6"
-          >
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-              <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_12px_rgba(96,165,250,0.6)]" />
-              Join a lobby
-            </div>
-            <label className="text-sm text-slate-300">
-              Display name
-              <input
-                className="mt-2 w-full rounded-lg border border-slate-700/70 bg-slate-950/50 px-3 py-2 text-base text-slate-50 outline-none ring-blue-500/30 transition focus:border-blue-400/80 focus:ring"
-                value={joinName}
-                onChange={(e) => setJoinName(e.target.value)}
-                placeholder="QB1"
-                required
-              />
-            </label>
-            <label className="text-sm text-slate-300">
-              Game code
-              <input
-                className="mt-2 w-full rounded-lg border border-slate-700/70 bg-slate-950/50 px-3 py-2 text-base uppercase tracking-[0.2em] text-slate-50 outline-none ring-blue-500/30 transition focus:border-blue-400/80 focus:ring"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                placeholder="ABC123"
-                required
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="mt-2 inline-flex items-center justify-center rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-blue-950 transition hover:bg-blue-400 disabled:opacity-50"
-            >
-              {isPending ? "Joining..." : "Join lobby"}
-            </button>
-            <p className="text-xs text-slate-400">After joining, go to /game/{joinCode || "CODE"} to view the game.</p>
-          </form>
-        </div>
+            {activeTab === "host" ? (
+              <form onSubmit={handleCreate} className="mt-5 flex flex-col gap-4">
+                <label className="text-lg text-slate-600 font-semibold">
+                  Display name
+                  <input
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-xl text-slate-900 outline-none ring-emerald-400/20 transition focus:border-emerald-300/80 focus:ring"
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                    placeholder="Host name"
+                    required
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-4 text-lg font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  {isPending ? "Creating..." : "Create lobby"}
+                </button>
+                <p className="text-sm text-slate-500">
+                  We’ll generate a code and set you as host. Share the code to invite players.
+                </p>
+              </form>
+            ) : (
+              <form onSubmit={handleJoin} className="mt-5 flex flex-col gap-4">
+                <label className="text-lg text-slate-600 font-semibold">
+                  Display name
+                  <input
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-xl text-slate-900 outline-none ring-blue-400/20 transition focus:border-blue-300/80 focus:ring"
+                    value={joinName}
+                    onChange={(e) => setJoinName(e.target.value)}
+                    placeholder="Your name"
+                    required
+                  />
+                </label>
+                <label className="text-lg text-slate-600 font-semibold">
+                  Game code
+                  <input
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-xl uppercase tracking-[0.25em] text-slate-900 outline-none ring-blue-400/20 transition focus:border-blue-300/80 focus:ring"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="ABC123"
+                    required
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-blue-500 px-5 py-4 text-lg font-semibold text-white transition hover:bg-blue-400 disabled:opacity-50"
+                >
+                  {isPending ? "Joining..." : "Join lobby"}
+                </button>
+                <p className="text-sm text-slate-500">
+                  After joining, go to /trivia/{joinCode || "CODE"} to view the game.
+                </p>
+              </form>
+            )}
+          </div>
+        ) : null}
 
         {activeLobby ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-                <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
-                Lobby roster
-              </div>
-              {rosterStatus === "loading" ? (
-                <span className="text-xs text-slate-400">Loading…</span>
-              ) : rosterStatus === "error" ? (
-                <span className="text-xs text-rose-200">Error loading roster</span>
-              ) : (
-                <span className="text-xs text-slate-400">{rosterPlayers.length} player(s)</span>
-              )}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_rgba(14,165,233,0.15)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
+              Lobby roster
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {rosterPlayers.map((player) => (
+            {rosterStatus === "loading" ? (
+              <span className="text-xs text-slate-500">Loading…</span>
+            ) : rosterStatus === "error" ? (
+              <span className="text-xs text-rose-500">Error loading roster</span>
+            ) : (
+              <span className="text-xs text-slate-500">{rosterPlayers.length} player(s)</span>
+            )}
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {rosterPlayers.length === 0 && rosterStatus !== "loading" ? (
+              <div className="col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-base font-semibold text-slate-600">
+                No players yet. Share the code to get teammates in.
+              </div>
+            ) : (
+              rosterPlayers.map((player) => (
                 <div
                   key={player.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-800/80 bg-slate-950/60 px-4 py-3"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-4"
                 >
                   <div>
-                    <p className="text-sm font-semibold text-slate-50">{player.display_name}</p>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{player.role}</p>
-                    <p className="text-xs text-slate-300">
-                      Side:{" "}
-                      <span className="font-semibold text-slate-100">
-                        {player.side ? player.side : "Unassigned"}
-                      </span>
-                    </p>
+                    <p className="text-xl font-semibold text-slate-900">{player.display_name}</p>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{player.role}</p>
+                    <p className="text-sm text-slate-600">Ready: {player.ready ? "Yes" : "No"}</p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    {isRef && player.role !== "ref" ? (
-                      <select
-                        value={player.side ?? ""}
-                        onChange={(e) =>
-                          handleSideChange(
-                            player.id,
-                            e.target.value === "" ? null : (e.target.value as "home" | "away"),
-                          )
-                        }
-                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-50"
-                      >
-                        <option value="">Unassigned</option>
-                        <option value="home">Home</option>
-                        <option value="away">Away</option>
-                      </select>
-                    ) : null}
                     {isRef && player.id !== myPlayer?.id && player.role !== "ref" ? (
                       <button
                         onClick={() => handleKick(player.id)}
-                        className="rounded-md border border-rose-500/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-100 transition hover:bg-rose-500/10"
+                        className="rounded-md border border-rose-500/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-600 transition hover:bg-rose-50"
                       >
                         Kick
                       </button>
                     ) : null}
                     <span
-                      className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
                         player.ready
-                          ? "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-400/60"
-                          : "bg-slate-800 text-slate-300 ring-1 ring-slate-700"
+                          ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300"
+                          : "bg-slate-200 text-slate-700 ring-1 ring-slate-300"
                       }`}
                     >
                       {player.ready ? "Ready" : "Not ready"}
                     </span>
                   </div>
                 </div>
-              ))}
-              {rosterPlayers.length === 0 && rosterStatus !== "loading" ? (
-                <div className="rounded-lg border border-dashed border-slate-800/80 bg-slate-950/40 px-4 py-8 text-center text-sm text-slate-400">
-                  No players yet. Share the code to get teammates in.
-                </div>
-              ) : null}
-            </div>
+              ))
+            )}
           </div>
-        ) : null}
+        </div>
+      ) : null}
       </div>
     </main>
   );

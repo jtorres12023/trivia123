@@ -43,6 +43,7 @@ export async function createLobbyAction(displayName: string): Promise<ActionResu
     .insert({
       code,
       status: "lobby_open",
+      mode: "trivia",
     })
     .select("id, code")
     .single();
@@ -204,6 +205,12 @@ export async function updateTeamNamesAction(
 export async function startGameAction(gameId: string, requesterId: string): Promise<ActionResult> {
   const supabase = createSupabaseServerClient();
 
+  const { data: gameRow } = await supabase
+    .from("games")
+    .select("id, mode")
+    .eq("id", gameId)
+    .single();
+
   const { data: host } = await supabase
     .from("players")
     .select("id")
@@ -217,27 +224,38 @@ export async function startGameAction(gameId: string, requesterId: string): Prom
     return { success: false, error: "Only the ref can start the game." };
   }
 
-  // Gate start: at least one player on each side and all ready
+  // Gate start: ensure ready players based on mode
   const { data: players, error: playersError } = await supabase
     .from("players")
-    .select("id, side, ready")
+    .select("id, side, ready, role")
     .eq("game_id", gameId);
 
   if (playersError) {
     return { success: false, error: playersError.message };
   }
 
-  const participants = (players ?? []).filter((p) => p.side === "home" || p.side === "away");
-  const homeCount = participants.filter((p) => p.side === "home").length;
-  const awayCount = participants.filter((p) => p.side === "away").length;
-  const allReady = participants.every((p) => p.ready);
+  if (gameRow?.mode === "trivia") {
+    const participants = (players ?? []).filter((p) => p.role !== "ref");
+    const allReady = participants.length > 0 && participants.every((p) => p.ready);
+    if (participants.length === 0) {
+      return { success: false, error: "Need at least one player to start." };
+    }
+    if (!allReady) {
+      return { success: false, error: "All players must be ready to start." };
+    }
+  } else {
+    const participants = (players ?? []).filter((p) => p.side === "home" || p.side === "away");
+    const homeCount = participants.filter((p) => p.side === "home").length;
+    const awayCount = participants.filter((p) => p.side === "away").length;
+    const allReady = participants.every((p) => p.ready);
 
-  if (homeCount === 0 || awayCount === 0) {
-    return { success: false, error: "Both teams need at least one player before starting." };
-  }
+    if (homeCount === 0 || awayCount === 0) {
+      return { success: false, error: "Both teams need at least one player before starting." };
+    }
 
-  if (!allReady) {
-    return { success: false, error: "All players must be ready to start." };
+    if (!allReady) {
+      return { success: false, error: "All players must be ready to start." };
+    }
   }
 
   const { error } = await supabase

@@ -52,6 +52,80 @@ alter table public.games add column if not exists current_play_seq int default 1
 create index if not exists idx_games_code on public.games (code);
 create index if not exists idx_players_game_id on public.players (game_id);
 
+-- Trivia mode support
+alter table public.games
+  add column if not exists mode text default 'football';
+alter table public.games
+  add column if not exists picker_player_id uuid;
+alter table public.games
+  add column if not exists target_score int default 25;
+alter table public.games
+  add column if not exists current_block int default 1;
+alter table public.games
+  add column if not exists winner_player_id uuid;
+
+create table if not exists public.questions (
+  id uuid primary key default gen_random_uuid(),
+  text text not null,
+  choices text[] not null,
+  correct_index int not null,
+  difficulty text default 'medium',
+  category text,
+  type text,
+  source text default 'local',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.rounds (
+  id uuid primary key default gen_random_uuid(),
+  game_id uuid not null references public.games(id) on delete cascade,
+  seq int not null,
+  question_id uuid not null references public.questions(id) on delete cascade,
+  status text check (status in ('pending','live','locked','revealed')) default 'pending',
+  category text,
+  difficulty text,
+  block int default 1,
+  starts_at timestamptz default now(),
+  ends_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (game_id, seq)
+);
+
+create table if not exists public.answers (
+  id uuid primary key default gen_random_uuid(),
+  round_id uuid not null references public.rounds(id) on delete cascade,
+  game_id uuid not null references public.games(id) on delete cascade,
+  player_id uuid not null references public.players(id) on delete cascade,
+  choice_index int,
+  correct boolean,
+  points int default 0,
+  ready_next boolean default false,
+  created_at timestamptz not null default now(),
+  unique (round_id, player_id)
+);
+
+create index if not exists idx_rounds_game on public.rounds (game_id);
+create index if not exists idx_answers_round on public.answers (round_id);
+
+-- Track player score for trivia
+alter table public.players
+  add column if not exists score int default 0;
+alter table public.players
+  add column if not exists correct_count int default 0;
+alter table public.players
+  add column if not exists incorrect_count int default 0;
+
+-- Increment player counts helper
+create or replace function public.increment_player_counts(p_player_id uuid, p_correct int, p_incorrect int)
+returns void
+language sql
+as $$
+  update public.players
+    set correct_count = coalesce(correct_count,0) + coalesce(p_correct,0),
+        incorrect_count = coalesce(incorrect_count,0) + coalesce(p_incorrect,0)
+  where id = p_player_id;
+$$;
+
 -- Plays log
 create table if not exists public.plays (
   id uuid primary key default gen_random_uuid(),

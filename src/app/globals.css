@@ -24,3 +24,27 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Force light color scheme for all pages (mobile battery saver etc.) */
+html,
+body {
+  color-scheme: light;
+}
+
+/* Hide Next.js dev overlays/toasts/floating buttons */
+#__next-build-watcher,
+#nextjs-toast,
+[data-nextjs-toast],
+[data-nextjs-overlay] {
+  display: none !important;
+}
+
+/* Extra guard for dev overlay / floating icon */
+#nextjs-portal,
+[data-nextjs-dev-overlay],
+[data-next-overlay],
+[data-next-dev-overlay],
+div#__next + div:has([data-nextjs-toast]),
+div[style*="z-index: 999999999"] {
+  display: none !important;
+}

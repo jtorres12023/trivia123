@@ -477,7 +477,7 @@ export default function GamePage() {
   const isCoinTossChoice = game.phase === "coin_toss_choice";
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
+    <div className="game-light mx-auto flex max-w-5xl flex-col gap-6 bg-gradient-to-br from-white via-[#f2f5fb] to-[#e6f3ff] p-6 text-slate-900">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-400">Gridiron Trivia</p>
@@ -1150,6 +1150,28 @@ export default function GamePage() {
           ) : null}
         </div>
       )}
+      <style jsx global>{`
+        .game-light .bg-slate-900,
+        .game-light .bg-slate-950,
+        .game-light .bg-slate-900\\/70,
+        .game-light .bg-slate-950\\/60,
+        .game-light .bg-slate-800,
+        .game-light .bg-slate-800\\/70 {
+          background-color: #ffffff !important;
+        }
+        .game-light .border-slate-800,
+        .game-light .border-slate-800\\/70,
+        .game-light .border-slate-800\\/80 {
+          border-color: #d1d5db !important;
+        }
+        .game-light .text-slate-50,
+        .game-light .text-slate-100,
+        .game-light .text-slate-200,
+        .game-light .text-slate-300,
+        .game-light .text-slate-400 {
+          color: #0f172a !important;
+        }
+      `}</style>
     </div>
   );
 }

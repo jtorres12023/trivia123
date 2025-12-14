@@ -29,6 +29,11 @@ export type GameState = {
   defense_side: "home" | "away" | null;
   second_half_kickoff_side: "home" | "away" | null;
   current_play_seq?: number | null;
+  mode?: string | null;
+  picker_player_id?: string | null;
+  target_score?: number | null;
+  current_block?: number | null;
+  winner_player_id?: string | null;
 };
 
 export async function getGameByCode(code: string): Promise<GameState | null> {
@@ -36,7 +41,7 @@ export async function getGameByCode(code: string): Promise<GameState | null> {
   const { data, error } = await supabase
     .from("games")
     .select(
-      "id, code, status, phase, play_subphase, quarter, clock_seconds, play_clock_seconds, possession_side, offense_side, defense_side, down, distance, yard_line, score_home, score_away, home_team_name, away_team_name, lobby_locked, host_player_id, toss_result, toss_winner_side, toss_choice, second_half_kickoff_side, current_play_seq",
+      "id, code, status, phase, play_subphase, quarter, clock_seconds, play_clock_seconds, possession_side, offense_side, defense_side, down, distance, yard_line, score_home, score_away, home_team_name, away_team_name, lobby_locked, host_player_id, toss_result, toss_winner_side, toss_choice, second_half_kickoff_side, current_play_seq, mode, picker_player_id, target_score, current_block, winner_player_id",
     )
     .eq("code", code.toUpperCase())
     .single();
