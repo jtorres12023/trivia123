@@ -317,48 +317,40 @@ export default function Home() {
         </div>
 
         {activeLobby ? (
-          <div className="grid w-full gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900 shadow-[0_10px_40px_rgba(16,185,129,0.1)] xl:grid-cols-[220px,1fr] xl:items-center">
-            <div className="hidden flex-col items-center justify-center rounded-xl border border-emerald-200 bg-white/60 p-3 shadow-sm xl:flex">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-emerald-700">Scan to join</div>
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=http://192.168.0.107:3000`}
-                alt="Join game QR code"
-                className="mt-2 h-44 w-44"
-              />
-              <p className="mt-2 text-[11px] font-semibold text-emerald-800">{(activeLobby.code || gameMeta?.code || "------").toUpperCase()}</p>
+          <div className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900 shadow-[0_10px_40px_rgba(16,185,129,0.1)]">
+            <div className="text-xl font-semibold">
+              In lobby{" "}
+              <span className="font-black tracking-[0.35em] text-emerald-800 text-3xl xl:text-5xl xl:block">
+                {(activeLobby.code || gameMeta?.code || "------").toUpperCase()}
+              </span>
             </div>
-            <div className="flex flex-col gap-3">
-              <div className="text-xl font-semibold">
-                In lobby <span className="font-black tracking-[0.35em] text-emerald-800 text-3xl xl:text-5xl xl:block">{(activeLobby.code || gameMeta?.code || "------").toUpperCase()}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-base font-semibold">
-                {myPlayer && myPlayer.role !== "ref" ? (
-                  <button
-                    onClick={toggleReady}
-                    className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                      myPlayer.ready
-                        ? "border-emerald-400 bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                        : "border-slate-400 text-slate-800 hover:bg-slate-200"
-                    }`}
-                  >
-                    {myPlayer.ready ? "Ready" : "Set ready"}
-                  </button>
-                ) : null}
+            <div className="flex flex-wrap items-center gap-2 text-base font-semibold">
+              {myPlayer && myPlayer.role !== "ref" ? (
                 <button
-                  onClick={handleLeave}
-                  className="rounded-lg border border-emerald-400/60 px-3 py-1 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                  onClick={toggleReady}
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                    myPlayer.ready
+                      ? "border-emerald-400 bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                      : "border-slate-400 text-slate-800 hover:bg-slate-200"
+                  }`}
                 >
-                  Leave lobby
+                  {myPlayer.ready ? "Ready" : "Set ready"}
                 </button>
-                {gameMeta?.status === "in_progress" && (activeLobby.code || gameMeta.code) ? (
-                  <button
-                    onClick={() => router.push(`/trivia/${activeLobby.code || gameMeta.code}`)}
-                    className="rounded-lg border border-amber-400/70 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900 transition hover:bg-amber-200"
-                  >
-                    Go to game view
-                  </button>
-                ) : null}
-              </div>
+              ) : null}
+              <button
+                onClick={handleLeave}
+                className="rounded-lg border border-emerald-400/60 px-3 py-1 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+              >
+                Leave lobby
+              </button>
+              {gameMeta?.status === "in_progress" && (activeLobby.code || gameMeta.code) ? (
+                <button
+                  onClick={() => router.push(`/trivia/${activeLobby.code || gameMeta.code}`)}
+                  className="rounded-lg border border-amber-400/70 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900 transition hover:bg-amber-200"
+                >
+                  Go to game view
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
