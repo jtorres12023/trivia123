@@ -300,14 +300,20 @@ export default function Home() {
     <main className="flex min-h-screen flex-col bg-gradient-to-br from-white via-[#f2f5fb] to-[#e5f2ff] px-6 py-12 text-slate-900">
       <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-10 overflow-hidden rounded-3xl border border-slate-200 bg-white p-10 shadow-[0_30px_120px_rgba(15,23,42,0.15)] backdrop-blur">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(251,191,36,0.14),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(52,211,153,0.12),transparent_30%)]" />
-        <div>
-          <p className="text-sm uppercase tracking-[0.5em] text-cyan-600">Live Trivia</p>
-          <h1 className="mt-3 text-5xl font-extrabold leading-tight text-slate-900 sm:text-6xl">
+        <div className="flex flex-col items-center text-center gap-3">
+          <p className="text-lg uppercase tracking-[0.5em] text-cyan-600 md:text-2xl">Live Trivia</p>
+          <h1 className="text-5xl font-extrabold leading-tight text-slate-900 sm:text-6xl md:text-7xl">
             Join or host a game
           </h1>
-          <p className="mt-5 max-w-3xl text-lg text-slate-700 sm:text-xl">
-            Big-screen friendly lobby for your next trivia session. Create a room, share the code, and get everyone ready.
-          </p>
+          <div className="mt-2 flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Scan to join</div>
+            <img
+              src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=192.168.0.107:3000"
+              alt="Join game QR code"
+              className="mt-2 h-48 w-48"
+            />
+            <p className="mt-1 text-xs text-slate-500">Point your phone here to open 192.168.0.107:3000</p>
+          </div>
         </div>
 
         {activeLobby ? (
