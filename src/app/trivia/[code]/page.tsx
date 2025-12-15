@@ -509,6 +509,23 @@ export default function TriviaPage() {
     }
   };
 
+  const handleLeaveGame = async () => {
+    if (!playerId) return;
+    const confirmed = window.confirm("Leave game? This will remove you from the lobby.");
+    if (!confirmed) return;
+    setStatus(null);
+    const { error } = await supabase.from("players").delete().eq("id", playerId);
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("gridiron-lobby");
+    }
+    setStatus("You left the game.");
+    router.push("/");
+  };
+
   const questionBlock = question ? (
     <div className={`rounded-lg border border-slate-200 bg-slate-50 ${isHost ? "p-6" : "p-4"} shadow-sm`}>
       <p className={`${isHost ? "text-lg" : "text-sm"} uppercase tracking-[0.2em] text-slate-500`}>Question</p>
@@ -596,6 +613,13 @@ export default function TriviaPage() {
               Close game
             </button>
           </div>
+        ) : playerId ? (
+          <button
+            onClick={handleLeaveGame}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+          >
+            Leave game
+          </button>
         ) : null}
       </div>
       {isHost ? (
