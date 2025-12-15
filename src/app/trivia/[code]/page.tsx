@@ -55,18 +55,18 @@ const FALLBACK_CATEGORIES = [
   "Books",
 ];
 
-// The Trivia API canonical category enums
-const TRIVIA_API_CATEGORIES = [
-  "music",
-  "sport_and_leisure",
-  "film_and_tv",
-  "arts_and_literature",
-  "history",
-  "society_and_culture",
-  "science",
-  "geography",
-  "food_and_drink",
-  "general_knowledge",
+// The Trivia API canonical category enums with display labels
+const TRIVIA_API_CATEGORIES: Array<{ id: string; label: string }> = [
+  { id: "music", label: "Music" },
+  { id: "sport_and_leisure", label: "Sport and Leisure" },
+  { id: "film_and_tv", label: "Film and TV" },
+  { id: "arts_and_literature", label: "Arts and Literature" },
+  { id: "history", label: "History" },
+  { id: "society_and_culture", label: "Society and Culture" },
+  { id: "science", label: "Science" },
+  { id: "geography", label: "Geography" },
+  { id: "food_and_drink", label: "Food and Drink" },
+  { id: "general_knowledge", label: "General Knowledge" },
 ];
 
 export default function TriviaPage() {
@@ -416,7 +416,7 @@ export default function TriviaPage() {
       setCategoryChoice((prev) => prev || list[0]);
     };
 
-    const list = TRIVIA_API_CATEGORIES;
+    const list = TRIVIA_API_CATEGORIES.map((c) => c.id);
     if (list.length > 0) {
       setCategories(list);
       setCategoryChoice((prev) => prev || list[0]);
@@ -560,24 +560,24 @@ export default function TriviaPage() {
         {!canPick ? <span className="text-[11px] text-slate-500">Waiting for picker...</span> : null}
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
-        {categories.length === 0 ? (
-          <p className="text-xs text-slate-500">No categories loaded. Import questions first.</p>
-        ) : (
-          categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoryChoice(cat)}
-              disabled={!canPick}
-              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
-                categoryChoice === cat
-                  ? "border-emerald-400 bg-emerald-50 text-emerald-800"
-                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
-              } ${!canPick ? "opacity-60 cursor-not-allowed" : ""}`}
-            >
-              {cat}
-            </button>
-          ))
-        )}
+          {categories.length === 0 ? (
+            <p className="text-xs text-slate-500">No categories loaded. Import questions first.</p>
+          ) : (
+            categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryChoice(cat)}
+                disabled={!canPick}
+                className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  categoryChoice === cat
+                    ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                    : "border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
+                } ${!canPick ? "opacity-60 cursor-not-allowed" : ""}`}
+              >
+                {TRIVIA_API_CATEGORIES.find((c) => c.id === cat)?.label ?? cat.replace(/_/g, " ")}
+              </button>
+            ))
+          )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <select
