@@ -86,9 +86,11 @@ export default function TriviaPage() {
   const currentSeq = currentRound?.seq ?? 0;
   const questionsLeft = currentRound ? Math.max(totalQuestions - currentSeq + (currentRound.status === "revealed" ? 0 : 1), 0) : totalQuestions;
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
+  const canPick = (game?.picker_player_id && playerId && game.picker_player_id === playerId) || (game?.host_player_id && game.host_player_id === playerId);
 
   const isHost = game?.host_player_id ? game.host_player_id === playerId : false;
   const isPicker = game?.picker_player_id && playerId ? game.picker_player_id === playerId : false;
+  const canPick = isPicker || isHost;
 
   // Temporary debugging to trace picker gate and category state
   useEffect(() => {
@@ -607,7 +609,7 @@ export default function TriviaPage() {
               </div>
               {status ? <p className="mt-2 text-sm text-amber-700">{status}</p> : null}
             </div>
-            {isPicker && (!currentRound || currentRound.status === "revealed") ? (
+            {canPick && (!currentRound || currentRound.status === "revealed") ? (
               <div className="rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-2">Choose category</p>
                 <div className="grid gap-2 sm:grid-cols-3">
