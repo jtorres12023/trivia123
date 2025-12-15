@@ -379,8 +379,12 @@ export async function chooseCategoryDifficulty(
     }
   }
 
-  if (!questions || questions.length < BLOCK_SIZE)
+  if (!questions || questions.length === 0) {
     return { success: false, error: "Not enough questions for that category/difficulty." };
+  }
+
+  // Proceed even if we have fewer than the target block size so the picker isn’t blocked
+  const usableQuestions = questions.slice(0, BLOCK_SIZE);
 
   const { data: lastRound } = await supabase
     .from("rounds")
@@ -391,7 +395,7 @@ export async function chooseCategoryDifficulty(
     .maybeSingle();
   const startSeq = (lastRound?.seq ?? 0) + 1;
 
-  const inserts = questions.map((q, idx) => ({
+  const inserts = usableQuestions.map((q, idx) => ({
     game_id: gameId,
     seq: startSeq + idx,
     question_id: q.id,
