@@ -334,19 +334,6 @@ export default function TriviaPage() {
     };
   }, [game?.id, playerId, isHost]);
 
-  // Periodic game refresh to keep picker/status in sync across devices
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const fresh = await getGameByCode(code);
-      if (fresh) {
-        setGame(fresh);
-        await fetchLatestRound(fresh.id);
-      }
-      setGamePollTick((t) => t + 1);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [code]);
-
   // Reset ready modal visibility whenever the round changes
   useEffect(() => {
     if (!currentRound || currentRound.status === "pending") {
