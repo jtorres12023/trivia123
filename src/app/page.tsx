@@ -317,14 +317,14 @@ export default function Home() {
         </div>
 
         {activeLobby ? (
-          <div className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900 shadow-[0_10px_40px_rgba(16,185,129,0.1)]">
-            <div className="text-xl font-semibold">
-              In lobby{" "}
-              <span className="font-black tracking-[0.35em] text-emerald-800 text-3xl xl:text-5xl xl:block">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900 shadow-[0_10px_40px_rgba(16,185,129,0.1)]">
+            <div className="text-center text-xl font-semibold">
+              <div className="mb-1 text-base uppercase tracking-[0.25em] text-emerald-700">In lobby</div>
+              <div className="font-black tracking-[0.35em] text-emerald-800 text-3xl xl:text-5xl">
                 {(activeLobby.code || gameMeta?.code || "------").toUpperCase()}
-              </span>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-base font-semibold">
+            <div className="flex flex-wrap items-center justify-center gap-2 text-base font-semibold">
               {myPlayer && myPlayer.role !== "ref" ? (
                 <button
                   onClick={toggleReady}
