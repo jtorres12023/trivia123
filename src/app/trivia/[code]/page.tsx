@@ -87,6 +87,53 @@ export default function TriviaPage() {
   const currentSeq = currentRound?.seq ?? 0;
   const questionsLeft = currentRound ? Math.max(totalQuestions - currentSeq + (currentRound.status === "revealed" ? 0 : 1), 0) : totalQuestions;
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
+  const categoryPicker = showCategoryPicker ? (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-2">Choose category</p>
+        {!isPicker ? <span className="text-[11px] text-slate-500">Waiting for picker...</span> : null}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {categories.length === 0 ? (
+          <p className="text-xs text-slate-500">No categories loaded. Import questions first.</p>
+        ) : (
+          categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryChoice(cat)}
+              disabled={!isPicker}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                categoryChoice === cat
+                  ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
+              } ${!isPicker ? "opacity-60 cursor-not-allowed" : ""}`}
+            >
+              {cat}
+            </button>
+          ))
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <select
+          value={difficultyChoice}
+          onChange={(e) => setDifficultyChoice(e.target.value as "easy" | "medium" | "hard")}
+          disabled={!isPicker}
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60"
+        >
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+        <button
+          onClick={handleSeedBlock}
+          disabled={!isPicker}
+          className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Set 20-question round
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   const isHost = game?.host_player_id ? game.host_player_id === playerId : false;
   const isPicker = game?.picker_player_id && playerId ? game.picker_player_id === playerId : false;
@@ -654,53 +701,7 @@ export default function TriviaPage() {
               </div>
               {status ? <p className="mt-2 text-sm text-amber-700">{status}</p> : null}
             </div>
-            {showCategoryPicker ? (
-              <div className="rounded-lg border border-slate-200 bg-white p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-2">Choose category</p>
-                  {!isPicker ? <span className="text-[11px] text-slate-500">Waiting for picker...</span> : null}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {categories.length === 0 ? (
-                    <p className="text-xs text-slate-500">No categories loaded. Import questions first.</p>
-                  ) : (
-                    categories.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setCategoryChoice(cat)}
-                        disabled={!isPicker}
-                        className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
-                          categoryChoice === cat
-                            ? "border-emerald-400 bg-emerald-50 text-emerald-800"
-                            : "border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
-                        } ${!isPicker ? "opacity-60 cursor-not-allowed" : ""}`}
-                      >
-                        {cat}
-                      </button>
-                    ))
-                  )}
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <select
-                    value={difficultyChoice}
-                    onChange={(e) => setDifficultyChoice(e.target.value as "easy" | "medium" | "hard")}
-                    disabled={!isPicker}
-                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60"
-                  >
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                  </select>
-                  <button
-                    onClick={handleSeedBlock}
-                    disabled={!isPicker}
-                    className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Set 20-question round
-                  </button>
-                </div>
-              </div>
-            ) : null}
+            {categoryPicker}
             {questionBlock}
           </div>
           <div className="lg:sticky lg:top-6">
@@ -756,6 +757,8 @@ export default function TriviaPage() {
           </div>
         </div>
       ) : null}
+
+      {!isHost ? categoryPicker : null}
 
       {!isHost ? questionBlock : null}
 
