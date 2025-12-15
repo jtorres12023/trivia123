@@ -326,19 +326,9 @@ export async function chooseCategoryDifficulty(
   difficulty: "easy" | "medium" | "hard",
 ): Promise<ActionResult> {
   const supabase = createSupabaseServerClient();
-  const { data: game } = await supabase
-    .from("games")
-    .select("picker_player_id, current_block, host_player_id")
-    .eq("id", gameId)
-    .single();
+  const { data: game } = await supabase.from("games").select("picker_player_id, current_block").eq("id", gameId).single();
   if (!game) return { success: false, error: "Game not found." };
-  const isHost = game.host_player_id && game.host_player_id === pickerId;
-  if (!isHost && game.picker_player_id !== pickerId) return { success: false, error: "Not your turn to pick." };
-
-  // If host is overriding, set them as picker to keep state consistent.
-  if (isHost && game.picker_player_id !== pickerId) {
-    await supabase.from("games").update({ picker_player_id: pickerId }).eq("id", gameId);
-  }
+  if (game.picker_player_id !== pickerId) return { success: false, error: "Not your turn to pick." };
 
   const normalizedCategory = category.trim();
   const { data: used } = await supabase.from("rounds").select("question_id").eq("game_id", gameId);
