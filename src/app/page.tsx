@@ -413,22 +413,6 @@ export default function Home() {
           </div>
         ) : null}
 
-        {activeLobby ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-800">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-slate-900">Ready check</span>
-              <span>
-                Players: {rosterPlayers.length} | Ready: {players.filter((p) => p.ready).length}/{players.length}
-              </span>
-              {!canStart ? (
-                <span className="text-amber-700">All players must ready up to start.</span>
-              ) : (
-                <span className="text-emerald-700">All set</span>
-              )}
-            </div>
-          </div>
-        ) : null}
-
         {!activeLobby ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_12px_40px_rgba(14,165,233,0.15)]">
             <div className="mb-4 h-1 rounded-full bg-gradient-to-r from-cyan-400 via-emerald-300 to-amber-300" />
