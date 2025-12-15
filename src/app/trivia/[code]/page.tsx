@@ -117,6 +117,12 @@ export default function TriviaPage() {
   const fetchLatestRound = async (gameId: string) => {
     try {
       const res = await fetch(`/api/trivia-state/${game?.code ?? code}`);
+      if (res.status === 404) {
+        setStatus("Game closed.");
+        if (typeof window !== "undefined") localStorage.removeItem("gridiron-lobby");
+        router.push("/");
+        return;
+      }
       if (!res.ok) return;
       const data = (await res.json()) as LiveTriviaState;
 
@@ -365,6 +371,19 @@ export default function TriviaPage() {
     }, 3000);
     return () => clearInterval(interval);
   }, [game?.id]);
+
+  // Lightweight existence check to catch deleted/closed games
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const g = await getGameByCode(code);
+      if (!g) {
+        setStatus("Game closed.");
+        if (typeof window !== "undefined") localStorage.removeItem("gridiron-lobby");
+        router.push("/");
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [code, router]);
 
   // Load distinct categories from questions
   useEffect(() => {

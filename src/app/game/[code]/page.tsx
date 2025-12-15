@@ -306,6 +306,22 @@ export default function GamePage() {
     };
   }, [game?.id, game?.current_play_seq]);
 
+  // Fallback existence check to catch closed games
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!code) return;
+      const g = await getGameByCode(code);
+      if (!g) {
+        setError("Game closed by host.");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("gridiron-lobby");
+        }
+        router.push("/");
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [code, router]);
+
   const handleStartCoinToss = async () => {
     if (!game?.id) return;
     await startCoinToss(game.id);
