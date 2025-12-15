@@ -511,3 +511,16 @@ export async function startNextPendingRound(gameId: string): Promise<ActionResul
   await logGameEvent(gameId, "trivia_round_started", { seq: nextPending.seq, round_id: nextPending.id, triggered: "manual_start" });
   return { success: true };
 }
+
+export async function closeTriviaGame(gameId: string, requesterId?: string): Promise<ActionResult> {
+  const supabase = createSupabaseServerClient();
+  const { data: game } = await supabase.from("games").select("host_player_id, code").eq("id", gameId).maybeSingle();
+  if (!game) return { success: false, error: "Game not found." };
+  if (game.host_player_id && requesterId && requesterId !== game.host_player_id) {
+    return { success: false, error: "Only the host can close this game." };
+  }
+
+  const { error } = await supabase.from("games").delete().eq("id", gameId);
+  if (error) return { success: false, error: error.message };
+  return { success: true, message: `Game ${game.code ?? ""} closed.` };
+}

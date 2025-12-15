@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import type { GameState } from "@/app/actions/game";
 import { getGameByCode } from "@/app/actions/game";
@@ -15,6 +15,7 @@ import {
   confirmReadyNext,
   resetTriviaGame,
   startNextPendingRound,
+  closeTriviaGame,
 } from "@/app/actions/trivia";
 
 type TriviaQuestion = {
@@ -43,6 +44,7 @@ type LiveTriviaState = {
 
 export default function TriviaPage() {
   const { code } = useParams<{ code: string }>();
+  const router = useRouter();
   const [game, setGame] = useState<GameState | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
@@ -185,10 +187,23 @@ export default function TriviaPage() {
       .channel(`trivia-game-${game.id}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "games", filter: `id=eq.${game.id}` },
+        { event: "*", schema: "public", table: "games", filter: `id=eq.${game.id}` },
         async (payload) => {
+          if (payload.eventType === "DELETE") {
+            setStatus("Game closed by host.");
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("gridiron-lobby");
+            }
+            setGame(null);
+            setCurrentRound(null);
+            setQuestion(null);
+            setAnswersSummary([]);
+            setHasSubmittedAnswer(false);
+            router.push("/");
+            return;
+          }
           setGame(payload.new as GameState);
-          await fetchLatestRound(payload.new.id);
+          await fetchLatestRound((payload.new as any).id);
         },
       )
       .on(
@@ -457,6 +472,20 @@ export default function TriviaPage() {
     }
   };
 
+  const handleCloseGame = async () => {
+    if (!game?.id || !playerId) return;
+    const res = await closeTriviaGame(game.id, playerId);
+    if (!res.success) {
+      setStatus(res.error);
+      return;
+    }
+    setStatus("Game closed. Returning to lobby.");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("gridiron-lobby");
+    }
+    router.push("/");
+  };
+
   const handleStartPending = async () => {
     if (!game?.id) return;
     const res = await startNextPendingRound(game.id);
@@ -546,6 +575,12 @@ export default function TriviaPage() {
               className="rounded-md border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
             >
               Reset game
+            </button>
+            <button
+              onClick={handleCloseGame}
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+            >
+              Close game
             </button>
           </div>
         ) : null}
