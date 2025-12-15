@@ -90,12 +90,14 @@ export default function TriviaPage() {
 
   const isHost = game?.host_player_id ? game.host_player_id === playerId : false;
   const isPicker = game?.picker_player_id && playerId ? game.picker_player_id === playerId : false;
+  const showCategoryPicker = !currentRound || currentRound.status !== "live";
 
   // Temporary debugging to trace picker gate and category state
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log("picker debug", {
       isPicker,
+      showCategoryPicker,
       playerId,
       pickerId: game?.picker_player_id,
       roundStatus: currentRound?.status,
@@ -652,7 +654,7 @@ export default function TriviaPage() {
               </div>
               {status ? <p className="mt-2 text-sm text-amber-700">{status}</p> : null}
             </div>
-            {!currentRound || currentRound.status === "revealed" ? (
+            {showCategoryPicker ? (
               <div className="rounded-lg border border-slate-200 bg-white p-3">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-2">Choose category</p>
