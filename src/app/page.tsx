@@ -308,11 +308,11 @@ export default function Home() {
           <div className="mt-2 hidden flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex">
             <div className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Scan to join</div>
             <img
-              src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=192.168.0.107:3000"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=http://192.168.0.107:3000"
               alt="Join game QR code"
               className="mt-2 h-48 w-48"
             />
-            <p className="mt-1 text-xs text-slate-500">Point your phone here to open 192.168.0.107:3000</p>
+            <p className="mt-1 text-xs text-slate-500">Point your phone here to open http://192.168.0.107:3000</p>
           </div>
         </div>
 
