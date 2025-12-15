@@ -42,6 +42,19 @@ type LiveTriviaState = {
   answersSummary: { player_id: string; display_name: string | null; correct: boolean | null; points: number | null }[];
 };
 
+const FALLBACK_CATEGORIES = [
+  "General Knowledge",
+  "History",
+  "Geography",
+  "Science & Nature",
+  "Film",
+  "Television",
+  "Music",
+  "Sports",
+  "Computers",
+  "Books",
+];
+
 export default function TriviaPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
@@ -360,10 +373,13 @@ export default function TriviaPage() {
       .neq("category", "")
       .order("category", { ascending: true })
       .then(({ data }) => {
-        if (data) {
-          const unique = Array.from(new Set(data.map((d) => d.category as string))).filter(Boolean);
+        const unique = data ? Array.from(new Set(data.map((d) => d.category as string))).filter(Boolean) : [];
+        if (unique.length > 0) {
           setCategories(unique);
-          if (!categoryChoice && unique.length > 0) setCategoryChoice(unique[0]);
+          if (!categoryChoice) setCategoryChoice(unique[0]);
+        } else {
+          setCategories(FALLBACK_CATEGORIES);
+          if (!categoryChoice) setCategoryChoice(FALLBACK_CATEGORIES[0]);
         }
       });
   }, [categoryChoice]);
