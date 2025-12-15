@@ -89,7 +89,7 @@ export default function TriviaPage() {
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
   const isHost = game?.host_player_id ? game.host_player_id === playerId : false;
   const isPicker = game?.picker_player_id && playerId ? game.picker_player_id === playerId : false;
-  const canPick = isPicker || (!game?.picker_player_id && !!playerId);
+  const canPick = !!playerId; // allow any player to pick to avoid being blocked if picker isn't set
   const showCategoryPicker = !currentRound || currentRound.status !== "live";
 
   // Temporary debugging to trace picker gate and category state
@@ -533,7 +533,7 @@ export default function TriviaPage() {
   const categoryPicker = showCategoryPicker ? (
     <div className="rounded-lg border border-slate-200 bg-white p-3">
       <div className="flex items-center justify-between">
-       <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-2">Choose category</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-2">Choose category</p>
         {!canPick ? <span className="text-[11px] text-slate-500">Waiting for picker...</span> : null}
       </div>
       <div className="grid gap-2 sm:grid-cols-3">

@@ -328,12 +328,8 @@ export async function chooseCategoryDifficulty(
   const supabase = createSupabaseServerClient();
   const { data: game } = await supabase.from("games").select("picker_player_id, current_block").eq("id", gameId).single();
   if (!game) return { success: false, error: "Game not found." };
-  // If no picker is set yet, set this caller as picker to unblock flow
-  if (!game.picker_player_id) {
-    await supabase.from("games").update({ picker_player_id: pickerId }).eq("id", gameId);
-  } else if (game.picker_player_id !== pickerId) {
-    return { success: false, error: "Not your turn to pick." };
-  }
+  // Always set/refresh picker to the caller to unblock flow.
+  await supabase.from("games").update({ picker_player_id: pickerId }).eq("id", gameId);
 
   const normalizedCategory = category.trim();
   const { data: used } = await supabase.from("rounds").select("question_id").eq("game_id", gameId);
