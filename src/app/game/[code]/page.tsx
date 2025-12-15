@@ -213,8 +213,18 @@ export default function GamePage() {
       .channel(`game-${game.id}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "games", filter: `id=eq.${game.id}` },
+        { event: "*", schema: "public", table: "games", filter: `id=eq.${game.id}` },
         (payload) => {
+          if (payload.eventType === "DELETE") {
+            setError("Game closed by host.");
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("gridiron-lobby");
+            }
+            setGame(null);
+            setEvents([]);
+            router.push("/");
+            return;
+          }
           setGame(payload.new as GameState);
           refreshLatestPlay(game.id);
           refreshAnswerStatus(game.id, (payload.new as GameState).current_play_seq ?? 1);
