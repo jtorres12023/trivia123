@@ -332,60 +332,82 @@ export async function chooseCategoryDifficulty(
   await supabase.from("games").update({ picker_player_id: pickerId }).eq("id", gameId);
 
   const normalizedCategory = category.trim();
-  const { data: used } = await supabase.from("rounds").select("question_id").eq("game_id", gameId);
-  const usedIds = (used ?? []).map((r) => r.question_id);
+  const BLOCK_SIZE = 20;
 
   // Single block game: clear any existing rounds before seeding new set
   await supabase.from("rounds").delete().eq("game_id", gameId);
 
-  const BLOCK_SIZE = 20;
-
-  let query = supabase
-    .from("questions")
-    .select("id, category")
-    .ilike("category", normalizedCategory)
-    .eq("difficulty", difficulty);
-
-  // Only apply exclusion if we actually have used ids
-  if (usedIds.length > 0) {
-    query = query.not("id", "in", `(${usedIds.map((id) => `'${id}'`).join(",")})`);
+  // Fetch from The Trivia API
+  let fetched: any[] = [];
+  try {
+    const res = await fetch(
+      `https://the-trivia-api.com/api/questions?categories=${encodeURIComponent(normalizedCategory)}&difficulty=${encodeURIComponent(
+        difficulty,
+      )}&limit=${BLOCK_SIZE}`,
+    );
+    if (res.ok) {
+      fetched = (await res.json()) as any[];
+    }
+  } catch (err) {
+    console.error("Trivia API fetch failed", err);
   }
 
-  let { data: questions } = await query.limit(BLOCK_SIZE);
+  // Map and insert fetched questions locally
+  let insertedIds: string[] = [];
+  if (fetched && fetched.length > 0) {
+    const rows =
+      fetched
+        .map((q) => {
+          const text = (q.question && (q.question.text || q.question)) || q.question || "";
+          const correct = q.correctAnswer ?? q.correct_answer ?? "";
+          const incorrect = (q.incorrectAnswers ?? q.incorrect_answers ?? []) as string[];
+          if (!text || !correct) return null;
+          const choices = shuffle([correct, ...incorrect]);
+          const correctIndex = Math.max(0, choices.indexOf(correct));
+          return {
+            text,
+            choices,
+            correct_index: correctIndex,
+            difficulty,
+            category: normalizedCategory,
+            type: q.type ?? null,
+            source: "the_trivia_api",
+          };
+        })
+        .filter(Boolean) as Array<{
+        text: string;
+        choices: string[];
+        correct_index: number;
+        difficulty: string;
+        category: string;
+        type: string | null;
+        source: string;
+      }>;
 
-  // Auto-fetch/import if not enough questions for that combo
-  if (!questions || questions.length < 5) {
-    const catId = OTDB_CATEGORY_MAP[normalizedCategory.toLowerCase()] ?? undefined;
-    await importOpenTriviaBatch(30, difficulty, catId);
-    ({ data: questions } = await query.limit(BLOCK_SIZE));
-
-    // If still short, relax to difficulty-only (and import again) so the picker isn't blocked
-    if (!questions || questions.length < 5) {
-      let relaxed = supabase.from("questions").select("id").eq("difficulty", difficulty);
-      if (usedIds.length > 0) relaxed = relaxed.not("id", "in", `(${usedIds.map((id) => `'${id}'`).join(",")})`);
-      const { data: relaxedQs } = await relaxed.limit(BLOCK_SIZE);
-      questions = relaxedQs ?? questions;
-
-      if (!questions || questions.length < 5) {
-        await importOpenTriviaBatch(30, difficulty, undefined);
-        const { data: relaxedAfterImport } = await relaxed.limit(BLOCK_SIZE);
-        questions = relaxedAfterImport ?? questions;
-      }
-
-      // Final fallback: ignore usedIds entirely to avoid blocking
-      if (!questions || questions.length < 5) {
-        const { data: anyQs } = await supabase.from("questions").select("id").eq("difficulty", difficulty).limit(BLOCK_SIZE);
-        questions = anyQs ?? questions;
-      }
+    if (rows.length > 0) {
+      const { data: inserted, error: insErr } = await supabase.from("questions").insert(rows).select("id");
+      if (insErr) return { success: false, error: insErr.message };
+      insertedIds = inserted?.map((q) => q.id) ?? [];
     }
   }
 
-  if (!questions || questions.length === 0) {
+  // Fallback to local store if API returned nothing usable
+  if (insertedIds.length === 0) {
+    const { data: questions } = await supabase
+      .from("questions")
+      .select("id")
+      .ilike("category", normalizedCategory)
+      .eq("difficulty", difficulty)
+      .order("id", { ascending: false });
+    insertedIds = questions?.map((q) => q.id) ?? [];
+  }
+
+  if (insertedIds.length === 0) {
     return { success: false, error: "Not enough questions for that category/difficulty." };
   }
 
-  // Proceed even if we have fewer than the target block size so the picker isn’t blocked
-  const usableQuestions = questions.slice(0, BLOCK_SIZE);
+  const shuffledIds = shuffle(insertedIds);
+  const usableIds = shuffledIds.slice(0, Math.min(BLOCK_SIZE, shuffledIds.length));
 
   const { data: lastRound } = await supabase
     .from("rounds")
@@ -396,19 +418,19 @@ export async function chooseCategoryDifficulty(
     .maybeSingle();
   const startSeq = (lastRound?.seq ?? 0) + 1;
 
-  const inserts = usableQuestions.map((q, idx) => ({
+  const inserts = usableIds.map((id, idx) => ({
     game_id: gameId,
     seq: startSeq + idx,
-    question_id: q.id,
+    question_id: id,
     status: idx === 0 ? "live" : "pending",
     block: 1,
-    category,
+    category: normalizedCategory,
     difficulty,
   }));
   const { error } = await supabase.from("rounds").insert(inserts);
   if (error) return { success: false, error: error.message };
 
-  await logGameEvent(gameId, "trivia_block_seeded", { block: game.current_block ?? 1, category, difficulty });
+  await logGameEvent(gameId, "trivia_block_seeded", { block: game.current_block ?? 1, category: normalizedCategory, difficulty });
   return { success: true, message: "Category/difficulty set. First question is live." };
 }
 

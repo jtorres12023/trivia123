@@ -55,6 +55,20 @@ const FALLBACK_CATEGORIES = [
   "Books",
 ];
 
+// The Trivia API canonical category enums
+const TRIVIA_API_CATEGORIES = [
+  "music",
+  "sport_and_leisure",
+  "film_and_tv",
+  "arts_and_literature",
+  "history",
+  "society_and_culture",
+  "science",
+  "geography",
+  "food_and_drink",
+  "general_knowledge",
+];
+
 export default function TriviaPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
@@ -387,20 +401,28 @@ export default function TriviaPage() {
     return () => clearInterval(interval);
   }, [code, router]);
 
-  // Load distinct categories from questions
+  // Load categories using The Trivia API enums; fallback to local/fallback list if needed
   useEffect(() => {
-    supabase
-      .from("questions")
-      .select("category")
-      .not("category", "is", null)
-      .neq("category", "")
-      .order("category", { ascending: true })
-      .then(({ data }) => {
-        const unique = data ? Array.from(new Set(data.map((d) => d.category as string))).filter(Boolean) : [];
-        const list = unique.length > 0 ? unique : FALLBACK_CATEGORIES;
-        setCategories(list);
-        setCategoryChoice((prev) => prev || list[0]);
-      });
+    const setFromLocal = async () => {
+      const { data } = await supabase
+        .from("questions")
+        .select("category")
+        .not("category", "is", null)
+        .neq("category", "")
+        .order("category", { ascending: true });
+      const unique = data ? Array.from(new Set(data.map((d) => d.category as string))).filter(Boolean) : [];
+      const list = unique.length > 0 ? unique : FALLBACK_CATEGORIES;
+      setCategories(list);
+      setCategoryChoice((prev) => prev || list[0]);
+    };
+
+    const list = TRIVIA_API_CATEGORIES;
+    if (list.length > 0) {
+      setCategories(list);
+      setCategoryChoice((prev) => prev || list[0]);
+    } else {
+      setFromLocal();
+    }
   }, []);
 
   const handleStartRound = async () => {
