@@ -36,7 +36,7 @@ type LobbyGame = {
 
 export default function Home() {
   const router = useRouter();
-  const [createName, setCreateName] = useState("");
+  const [createName, setCreateName] = useState("Host");
   const [joinName, setJoinName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [activeLobby, setActiveLobby] = useState<{ gameId: string; code: string; playerId: string } | null>(null);
@@ -193,11 +193,11 @@ export default function Home() {
     };
   }, [activeLobby?.gameId]);
 
-  const handleCreate = (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleCreate = (event?: React.FormEvent) => {
+    if (event) event.preventDefault();
     setStatus(null);
     startTransition(async () => {
-      const result = await createLobbyAction(createName);
+      const result = await createLobbyAction(createName || "Host");
       if (result.success) {
         if (typeof window !== "undefined") {
           localStorage.removeItem(STORAGE_KEY);
@@ -442,16 +442,7 @@ export default function Home() {
             </div>
             {activeTab === "host" ? (
               <form onSubmit={handleCreate} className="mt-5 flex flex-col gap-4">
-                <label className="text-lg text-slate-600 font-semibold">
-                  Display name
-                  <input
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-xl text-slate-900 outline-none ring-emerald-400/20 transition focus:border-emerald-300/80 focus:ring"
-                    value={createName}
-                    onChange={(e) => setCreateName(e.target.value)}
-                    placeholder="Host name"
-                    required
-                  />
-                </label>
+                <input type="hidden" value={createName} readOnly />
                 <button
                   type="submit"
                   disabled={isPending}
