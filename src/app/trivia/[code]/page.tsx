@@ -361,15 +361,11 @@ export default function TriviaPage() {
       .order("category", { ascending: true })
       .then(({ data }) => {
         const unique = data ? Array.from(new Set(data.map((d) => d.category as string))).filter(Boolean) : [];
-        if (unique.length > 0) {
-          setCategories(unique);
-          if (!categoryChoice) setCategoryChoice(unique[0]);
-        } else {
-          setCategories(FALLBACK_CATEGORIES);
-          if (!categoryChoice) setCategoryChoice(FALLBACK_CATEGORIES[0]);
-        }
+        const list = unique.length > 0 ? unique : FALLBACK_CATEGORIES;
+        setCategories(list);
+        setCategoryChoice((prev) => prev || list[0]);
       });
-  }, [categoryChoice]);
+  }, []);
 
   const handleStartRound = async () => {
     if (!game?.id || !playerId || !question) return;
