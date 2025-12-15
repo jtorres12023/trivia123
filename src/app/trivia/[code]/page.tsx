@@ -86,7 +86,6 @@ export default function TriviaPage() {
   const currentSeq = currentRound?.seq ?? 0;
   const questionsLeft = currentRound ? Math.max(totalQuestions - currentSeq + (currentRound.status === "revealed" ? 0 : 1), 0) : totalQuestions;
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
-  const canPick = (game?.picker_player_id && playerId && game.picker_player_id === playerId) || (game?.host_player_id && game.host_player_id === playerId);
 
   const isHost = game?.host_player_id ? game.host_player_id === playerId : false;
   const isPicker = game?.picker_player_id && playerId ? game.picker_player_id === playerId : false;
