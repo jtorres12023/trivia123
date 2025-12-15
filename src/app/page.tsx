@@ -199,6 +199,9 @@ export default function Home() {
     startTransition(async () => {
       const result = await createLobbyAction(createName);
       if (result.success) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(STORAGE_KEY);
+        }
         setActiveLobby({ gameId: result.gameId, code: result.code, playerId: result.playerId });
         setStatus({
           type: "success",
@@ -216,6 +219,9 @@ export default function Home() {
     startTransition(async () => {
       const result = await joinLobbyAction(joinName, joinCode);
       if (result.success) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(STORAGE_KEY);
+        }
         setActiveLobby({ gameId: result.gameId, code: result.code, playerId: result.playerId });
         setStatus({
           type: "success",
