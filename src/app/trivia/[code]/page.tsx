@@ -132,7 +132,8 @@ export default function TriviaPage() {
       const q = data.question;
       const noPending = (data.counts?.pendingCount ?? 0) === 0;
       const totalPlayers = data.counts?.totalPlayers ?? 0;
-      const readyAll = totalPlayers > 0 && (data.counts?.readyCount ?? 0) >= totalPlayers;
+      const answersCount = data.counts?.answersCount ?? 0;
+      const readyAll = (data.counts?.readyCount ?? 0) >= Math.max(totalPlayers, answersCount, 1);
       setAnswersSummary(data.answersSummary ?? []);
 
       const isWaitingForNextBlock =
