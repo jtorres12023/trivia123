@@ -305,7 +305,7 @@ export default function Home() {
           <h1 className="text-5xl font-extrabold leading-tight text-slate-900 sm:text-6xl md:text-7xl">
             Join or host a game
           </h1>
-          <div className="mt-2 flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mt-2 hidden flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex">
             <div className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Scan to join</div>
             <img
               src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=192.168.0.107:3000"
