@@ -82,6 +82,7 @@ export default function TriviaPage() {
   const [answersSummary, setAnswersSummary] = useState<
     { player_id: string; display_name: string | null; correct: boolean | null; points: number | null }[]
   >([]);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const totalQuestions = 20;
   const currentSeq = currentRound?.seq ?? 0;
   const questionsLeft = currentRound ? Math.max(totalQuestions - currentSeq + (currentRound.status === "revealed" ? 0 : 1), 0) : totalQuestions;
@@ -509,10 +510,10 @@ export default function TriviaPage() {
     }
   };
 
-  const handleLeaveGame = async () => {
+  const handleLeaveGame = () => setShowLeaveModal(true);
+
+  const confirmLeaveGame = async () => {
     if (!playerId) return;
-    const confirmed = window.confirm("Leave game? This will remove you from the lobby.");
-    if (!confirmed) return;
     setStatus(null);
     const { error } = await supabase.from("players").delete().eq("id", playerId);
     if (error) {
@@ -523,6 +524,7 @@ export default function TriviaPage() {
       localStorage.removeItem("gridiron-lobby");
     }
     setStatus("You left the game.");
+    setShowLeaveModal(false);
     router.push("/");
   };
 
@@ -811,6 +813,30 @@ export default function TriviaPage() {
                 className="text-sm font-semibold text-slate-500 underline underline-offset-4"
               >
                 Hide
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showLeaveModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Leave game</p>
+            <h3 className="mt-2 text-xl font-bold text-slate-900">Are you sure you want to leave?</h3>
+            <p className="mt-1 text-sm text-slate-600">You’ll be removed from this game and taken back to the lobby join screen.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                onClick={confirmLeaveGame}
+                className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-400"
+              >
+                Leave game
+              </button>
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
               </button>
             </div>
           </div>
