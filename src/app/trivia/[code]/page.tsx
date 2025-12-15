@@ -89,6 +89,19 @@ export default function TriviaPage() {
 
   const isHost = game?.host_player_id ? game.host_player_id === playerId : false;
   const isPicker = game?.picker_player_id && playerId ? game.picker_player_id === playerId : false;
+
+  // Temporary debugging to trace picker gate and category state
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log("picker debug", {
+      isPicker,
+      playerId,
+      pickerId: game?.picker_player_id,
+      roundStatus: currentRound?.status,
+      categories,
+      categoryChoice,
+    });
+  }, [isPicker, playerId, game?.picker_player_id, currentRound?.status, categories, categoryChoice]);
   // Lightweight retry to pull fresh game state if picker isn't assigned yet
   useEffect(() => {
     if (game?.picker_player_id) return;
