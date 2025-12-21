@@ -63,12 +63,19 @@ export default function Home() {
           .eq("id", parsed.playerId)
           .eq("game_id", parsed.gameId)
           .single()
-          .then(({ data, error }) => {
+          .then(async ({ data, error }) => {
             if (error || !data) {
               localStorage.removeItem(STORAGE_KEY);
               return;
             }
-            setActiveLobby({ gameId: parsed.gameId, code: "", playerId: parsed.playerId });
+            // Fetch game code/status so banner doesn't flash blank
+            const { data: g } = await supabase
+              .from("games")
+              .select("code, status")
+              .eq("id", parsed.gameId)
+              .maybeSingle();
+            setActiveLobby({ gameId: parsed.gameId, code: g?.code ?? "", playerId: parsed.playerId });
+            if (g) setGameMeta((prev) => prev ?? (g as any));
           });
       }
     } catch {
@@ -164,6 +171,9 @@ export default function Home() {
       if (!isMounted) return;
       if (error || !data) return;
       setGameMeta(data);
+      if (!activeLobby.code && data.code) {
+        setActiveLobby((prev) => (prev ? { ...prev, code: data.code } : prev));
+      }
     };
 
     loadGame();

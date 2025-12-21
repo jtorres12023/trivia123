@@ -97,6 +97,7 @@ export default function TriviaPage() {
     { player_id: string; display_name: string | null; correct: boolean | null; points: number | null }[]
   >([]);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showEndModal, setShowEndModal] = useState(false);
   const totalQuestions = 20;
   const currentSeq = currentRound?.seq ?? 0;
   const questionsLeft = currentRound ? Math.max(totalQuestions - currentSeq + (currentRound.status === "revealed" ? 0 : 1), 0) : totalQuestions;
@@ -104,7 +105,8 @@ export default function TriviaPage() {
   const isHost = game?.host_player_id ? game.host_player_id === playerId : false;
   const isPicker = game?.picker_player_id && playerId ? game.picker_player_id === playerId : false;
   const canPick = !!playerId; // allow any player to pick to avoid being blocked if picker isn't set
-  const showCategoryPicker = !currentRound || currentRound.status !== "live";
+  const isCompleted = game?.status === "completed";
+  const showCategoryPicker = (!currentRound || currentRound.status !== "live") && !isCompleted;
 
   // Temporary debugging to trace picker gate and category state
   useEffect(() => {
@@ -163,13 +165,18 @@ export default function TriviaPage() {
         setStartModalDismissed(false);
         setRevealedSeen(null);
         setReadySubmittedRoundId(null);
-        setStatus(
-          data.game?.status === "lobby_open"
-            ? "Waiting for a category to be selected."
-            : isPicker
-            ? "Select the next category to begin the new block."
-            : "Waiting for picker to choose the next category.",
-        );
+        if (data.game?.status === "completed") {
+          setStatus("Game completed.");
+          setShowEndModal(true);
+        } else {
+          setStatus(
+            data.game?.status === "lobby_open"
+              ? "Waiting for a category to be selected."
+              : isPicker
+              ? "Select the next category to begin the new block."
+              : "Waiting for picker to choose the next category.",
+          );
+        }
         return;
       }
 
@@ -182,6 +189,10 @@ export default function TriviaPage() {
           setReadyModalDismissed(false);
           setRevealedSeen(round.id);
           setStartModalDismissed(true);
+          if ((questionsLeft <= 0 || data.game?.status === "completed") && readyAll) {
+            setReadyModalDismissed(true);
+            setShowEndModal(true);
+          }
         } else if (round.status === "pending") {
           setStartModalDismissed(false);
           setReadyModalDismissed(true);
@@ -863,6 +874,51 @@ export default function TriviaPage() {
               ) : null}
               <button
                 onClick={() => setReadyModalDismissed(true)}
+                className="text-sm font-semibold text-slate-500 underline underline-offset-4"
+              >
+                Hide
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {(isCompleted || (questionsLeft <= 0 && currentRound?.status === "revealed")) && showEndModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl text-center">
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Game complete</p>
+            <h3 className="mt-2 text-2xl font-bold text-slate-900">Trivia finished!</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              {scores.length > 0
+                ? `Winner: ${scores.sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0].name} · ${scores[0].score} pts`
+                : "Check the leaderboard for results."}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              {isHost ? (
+                <>
+                  <button
+                    onClick={handleResetGame}
+                    className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-400"
+                  >
+                    Reset game
+                  </button>
+                  <button
+                    onClick={handleCloseGame}
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+                  >
+                    Close game
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleLeaveGame}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+                >
+                  Back to lobby
+                </button>
+              )}
+              <button
+                onClick={() => setShowEndModal(false)}
                 className="text-sm font-semibold text-slate-500 underline underline-offset-4"
               >
                 Hide
