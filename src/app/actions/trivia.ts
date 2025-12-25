@@ -188,16 +188,10 @@ export async function lockAndScoreRound(roundId: string, gameId: string): Promis
     seq: round.seq,
   });
 
-  // Winner + next picker logic
-  const { data: gameRow } = await supabase.from("games").select("target_score, current_block").eq("id", gameId).single();
+  // Winner + next picker logic (for trivia: complete when all rounds in the block are revealed)
+  const { data: gameRow } = await supabase.from("games").select("current_block").eq("id", gameId).single();
   if (gameRow) {
-  const { data: playerScores } = await supabase.from("players").select("id, score, role").eq("game_id", gameId).neq("role", "ref");
-  const winner = playerScores?.find((p) => (p.score ?? 0) >= (gameRow.target_score ?? 25));
-  if (winner) {
-    await supabase.from("games").update({ status: "completed", winner_player_id: winner.id }).eq("id", gameId);
-    await logGameEvent(gameId, "trivia_completed", { winner: winner.id, score: winner.score });
-    return { success: true };
-  }
+    const { data: playerScores } = await supabase.from("players").select("id, score, role, display_name").eq("game_id", gameId).neq("role", "ref");
 
   const { count: revealedInBlock } = await supabase
     .from("rounds")
@@ -206,16 +200,22 @@ export async function lockAndScoreRound(roundId: string, gameId: string): Promis
     .eq("block", round.block ?? 1)
     .eq("status", "revealed");
 
-  // Single 20-question block: when all revealed, determine winner by high score (ties random)
-  if ((revealedInBlock ?? 0) >= 20) {
-    const topScore = playerScores?.reduce((max, p) => Math.max(max, p.score ?? 0), 0) ?? 0;
-    const topPlayers = (playerScores ?? []).filter((p) => (p.score ?? 0) === topScore);
-    const finalWinner = topPlayers.length > 0 ? topPlayers[Math.floor(Math.random() * topPlayers.length)] : null;
-    await supabase.from("games").update({ status: "completed", winner_player_id: finalWinner?.id ?? null }).eq("id", gameId);
-    await logGameEvent(gameId, "trivia_block_completed", { block: round.block ?? 1 });
-    await logGameEvent(gameId, "trivia_completed", { winner: finalWinner?.id ?? null, score: topScore });
-    return { success: true };
-  }
+    const { count: totalRoundsInBlock } = await supabase
+      .from("rounds")
+      .select("id", { count: "exact", head: true })
+      .eq("game_id", gameId)
+      .eq("block", round.block ?? 1);
+
+    // When all rounds in the block are revealed, determine winner by high score (ties random)
+    if ((revealedInBlock ?? 0) >= (totalRoundsInBlock ?? 0) && (totalRoundsInBlock ?? 0) > 0) {
+      const topScore = playerScores?.reduce((max, p) => Math.max(max, p.score ?? 0), 0) ?? 0;
+      const topPlayers = (playerScores ?? []).filter((p) => (p.score ?? 0) === topScore);
+      const finalWinner = topPlayers.length > 0 ? topPlayers[Math.floor(Math.random() * topPlayers.length)] : null;
+      await supabase.from("games").update({ status: "completed", winner_player_id: finalWinner?.id ?? null }).eq("id", gameId);
+      await logGameEvent(gameId, "trivia_block_completed", { block: round.block ?? 1 });
+      await logGameEvent(gameId, "trivia_completed", { winner: finalWinner?.id ?? null, score: topScore });
+      return { success: true };
+    }
 
 }
 

@@ -694,7 +694,15 @@ export default function TriviaPage() {
     <div className="trivia-light mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-4 bg-gradient-to-b from-white via-[#f5f8ff] to-[#eef5ff] px-10 py-8 text-slate-900">
       <div className={`flex ${isHost ? "items-center justify-between" : "items-center justify-center"} gap-3`}>
         <h1 className="text-3xl font-semibold text-slate-900">
-          {isHost ? `Trivia Game ${game?.code}` : myStats?.name ? myStats.name : "Trivia"}
+          {isHost
+            ? game?.code
+              ? `Trivia Game ${game.code}`
+              : "Trivia Game"
+            : myStats?.name
+            ? myStats.name
+            : game?.code
+            ? `Trivia Game ${game.code}`
+            : "Trivia"}
         </h1>
         {isHost ? (
           <div className="flex items-center gap-2">
