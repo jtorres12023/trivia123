@@ -85,7 +85,7 @@ export default function TriviaPage() {
   const [categoryChoice, setCategoryChoice] = useState<string>("");
   const [difficultyChoice, setDifficultyChoice] = useState<"easy" | "medium" | "hard">("easy");
   const [scores, setScores] = useState<{ player_id: string; score: number; name: string; correct: number; incorrect: number }[]>([]);
-  const [myStats, setMyStats] = useState<{ score: number; correct: number; incorrect: number; name?: string } | null>(null);
+  const [myStats, setMyStats] = useState<{ score: number; correct: number; incorrect: number; name?: string; role?: string } | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [readyModalDismissed, setReadyModalDismissed] = useState(false);
   const [startModalDismissed, setStartModalDismissed] = useState(false);
@@ -102,7 +102,11 @@ export default function TriviaPage() {
   const currentSeq = currentRound?.seq ?? 0;
   const questionsLeft = currentRound ? Math.max(totalQuestions - currentSeq + (currentRound.status === "revealed" ? 0 : 1), 0) : totalQuestions;
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
-  const isHost = game?.host_player_id ? game.host_player_id === playerId : false;
+  const isHost =
+    myStats?.role === "ref" ||
+    myStats?.role === "host" ||
+    (!myStats?.role && game?.host_player_id ? game.host_player_id === playerId : false);
+  const displayName = !isHost && myStats?.role === "player" && myStats?.name ? myStats.name : null;
   const isPicker = game?.picker_player_id && playerId ? game.picker_player_id === playerId : false;
   const canPick = !!playerId; // allow any player to pick to avoid being blocked if picker isn't set
   const isCompleted = game?.status === "completed";
@@ -271,12 +275,14 @@ export default function TriviaPage() {
         "postgres_changes",
         { event: "*", schema: "public", table: "rounds", filter: `game_id=eq.${game.id}` },
         async (payload) => {
-          const next = payload.new as { status?: string };
-          if (next?.status === "revealed" && payload.new?.id && payload.new.id !== revealedSeen) {
+          const next = (payload.new as Record<string, unknown>) || {};
+          const nextStatus = typeof next.status === "string" ? next.status : undefined;
+          const nextId = typeof next.id === "string" ? next.id : undefined;
+          if (nextStatus === "revealed" && nextId && nextId !== revealedSeen) {
             setReadyModalDismissed(false);
-            setRevealedSeen(payload.new.id as string);
+            setRevealedSeen(nextId);
           }
-          if (next?.status === "pending") {
+          if (nextStatus === "pending") {
             setStartModalDismissed(false);
             setRevealedSeen(null);
           }
@@ -341,10 +347,10 @@ export default function TriviaPage() {
 
   // Personal stats for non-hosts
   useEffect(() => {
-    if (!game?.id || !playerId || isHost) return;
+    if (!game?.id || !playerId) return;
     supabase
       .from("players")
-      .select("score, correct_count, incorrect_count, display_name")
+      .select("id, score, correct_count, incorrect_count, display_name, role")
       .eq("game_id", game.id)
       .eq("id", playerId)
       .maybeSingle()
@@ -355,6 +361,7 @@ export default function TriviaPage() {
             correct: (data as any).correct_count ?? 0,
             incorrect: (data as any).incorrect_count ?? 0,
             name: (data as any).display_name ?? undefined,
+            role: (data as any).role ?? undefined,
           });
         }
       });
@@ -371,6 +378,7 @@ export default function TriviaPage() {
               correct: (row as any).correct_count ?? 0,
               incorrect: (row as any).incorrect_count ?? 0,
               name: (row as any).display_name ?? undefined,
+              role: (row as any).role ?? undefined,
             });
           }
         },
@@ -698,8 +706,8 @@ export default function TriviaPage() {
             ? game?.code
               ? `Trivia Game ${game.code}`
               : "Trivia Game"
-            : myStats?.name
-            ? myStats.name
+            : displayName
+            ? displayName
             : game?.code
             ? `Trivia Game ${game.code}`
             : "Trivia"}

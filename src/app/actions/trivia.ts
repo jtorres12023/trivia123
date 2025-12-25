@@ -469,7 +469,14 @@ export async function confirmReadyNext(gameId: string, playerId: string, roundId
     .eq("round_id", roundId)
     .eq("ready_next", true);
 
-  if ((totalPlayers ?? 0) > 0 && (readyCount ?? 0) >= (totalPlayers ?? 0)) {
+  // Only advance when the current round is revealed and everyone is ready.
+  const { data: currentRound } = await supabase.from("rounds").select("status").eq("id", roundId).maybeSingle();
+
+  if (
+    currentRound?.status === "revealed" &&
+    (totalPlayers ?? 0) > 0 &&
+    (readyCount ?? 0) >= (totalPlayers ?? 0)
+  ) {
     const { data: nextPending } = await supabase
       .from("rounds")
       .select("id, seq")

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -13,8 +14,6 @@ import {
   setReadyAction,
   kickPlayerAction,
   setLobbyLockedAction,
-  updatePlayerSideAction,
-  updateTeamNamesAction,
 } from "./actions/lobby";
 
 type Status = { type: "success" | "error"; message: string };
@@ -32,12 +31,13 @@ type LobbyGame = {
   status: string;
   home_team_name: string;
   away_team_name: string;
+  lobby_locked?: boolean | null;
 };
 
 export default function Home() {
   const router = useRouter();
   const joinUrl = process.env.NEXT_PUBLIC_JOIN_URL || "http://localhost:3000";
-  const [createName, setCreateName] = useState("Host");
+  const createName = "Host";
   const [joinName, setJoinName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [activeLobby, setActiveLobby] = useState<{ gameId: string; code: string; playerId: string } | null>(null);
@@ -72,11 +72,16 @@ export default function Home() {
             // Fetch game code/status so banner doesn't flash blank
             const { data: g } = await supabase
               .from("games")
-              .select("code, status")
+              .select("id, code, status, home_team_name, away_team_name, lobby_locked")
               .eq("id", parsed.gameId)
               .maybeSingle();
-            setActiveLobby({ gameId: parsed.gameId, code: g?.code ?? "", playerId: parsed.playerId });
-            if (g) setGameMeta((prev) => prev ?? (g as any));
+            // If the stored lobby does not match the current game, clear it to avoid stale host/player confusion.
+            if (!g) {
+              localStorage.removeItem(STORAGE_KEY);
+              return;
+            }
+            setActiveLobby({ gameId: parsed.gameId, code: g.code ?? "", playerId: parsed.playerId });
+            if (g) setGameMeta((prev) => prev ?? (g as LobbyGame));
           });
       }
     } catch {
@@ -154,7 +159,7 @@ export default function Home() {
       isMounted = false;
       supabase.removeChannel(channel);
     };
-  }, [activeLobby?.gameId]);
+  }, [activeLobby?.gameId, activeLobby?.code, router]);
 
   // Load game metadata (team names, status) and keep it updated.
   useEffect(() => {
@@ -202,7 +207,7 @@ export default function Home() {
       isMounted = false;
       supabase.removeChannel(channel);
     };
-  }, [activeLobby?.gameId]);
+  }, [activeLobby?.gameId, activeLobby?.code, router]);
 
   const handleCreate = (event?: React.FormEvent) => {
     if (event) event.preventDefault();
@@ -246,13 +251,6 @@ export default function Home() {
 
   const myPlayer = players.find((p) => p.id === activeLobby?.playerId);
   const isRef = myPlayer?.role === "ref";
-
-  const handleSideChange = async (playerId: string, side: "home" | "away" | null) => {
-    if (!activeLobby?.gameId || !myPlayer) return;
-    // Optimistic update
-    setPlayers((prev) => prev.map((p) => (p.id === playerId ? { ...p, side, ready: false } : p)));
-    await updatePlayerSideAction(playerId, activeLobby.gameId, myPlayer.id, side);
-  };
 
   const handleStartGame = async () => {
     if (!activeLobby?.gameId || !myPlayer) return;
@@ -307,32 +305,53 @@ export default function Home() {
   const allReady = rosterPlayers.length > 0 && rosterPlayers.every((p) => p.ready);
   const canStart = gameMeta?.status === "lobby_open" && allReady;
 
+  const isInLobby = !!activeLobby;
+
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-to-br from-white via-[#f2f5fb] to-[#e5f2ff] px-6 py-12 text-slate-900">
-      <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-10 overflow-hidden rounded-3xl border border-slate-200 bg-white p-10 shadow-[0_30px_120px_rgba(15,23,42,0.15)] backdrop-blur">
+    <main className="flex min-h-screen flex-col bg-gradient-to-br from-white via-[#f2f5fb] to-[#e5f2ff] px-4 py-8 text-slate-900 sm:px-6 sm:py-12">
+      <div
+        className={`relative mx-auto flex w-full max-w-5xl flex-col ${
+          isInLobby ? "gap-6" : "gap-10"
+        } overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_30px_120px_rgba(15,23,42,0.15)] backdrop-blur sm:p-10`}
+      >
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(251,191,36,0.14),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(52,211,153,0.12),transparent_30%)]" />
-        <div className="flex flex-col items-center text-center gap-3">
-          <p className="text-lg uppercase tracking-[0.5em] text-cyan-600 md:text-2xl">Live Trivia</p>
-          <h1 className="text-5xl font-extrabold leading-tight text-slate-900 sm:text-6xl md:text-7xl">
+        <div className="flex flex-col items-center text-center gap-2">
+          <p className="text-base uppercase tracking-[0.5em] text-cyan-600 md:text-xl">Live Trivia</p>
+          <h1
+            className={`font-extrabold leading-tight text-slate-900 ${
+              isInLobby ? "text-4xl sm:text-5xl" : "text-5xl sm:text-6xl md:text-7xl"
+            }`}
+          >
             Join or host a game
           </h1>
-          <div className="mt-2 hidden flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex">
-            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Scan to join</div>
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}`}
-              alt="Join game QR code"
-              className="mt-2 h-48 w-48"
-            />
-            <p className="mt-1 text-xs text-slate-500">Point your phone here to open {joinUrl}</p>
-          </div>
+          {!isInLobby ? (
+            <div className="mt-2 hidden flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex">
+              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Scan to join</div>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}`}
+                alt="Join game QR code"
+                className="mt-2 h-48 w-48"
+              />
+              <p className="mt-1 text-xs text-slate-500">Point your phone here to open {joinUrl}</p>
+            </div>
+          ) : null}
         </div>
 
         {activeLobby ? (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900 shadow-[0_10px_40px_rgba(16,185,129,0.1)]">
-            <div className="text-center text-xl font-semibold">
-              <div className="mb-1 text-base uppercase tracking-[0.25em] text-emerald-700">In lobby</div>
-              <div className="font-black tracking-[0.35em] text-emerald-800 text-3xl xl:text-5xl">
-                {(activeLobby.code || gameMeta?.code || "------").toUpperCase()}
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900 shadow-[0_10px_40px_rgba(16,185,129,0.1)]">
+            <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-6">
+              <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(joinUrl)}`}
+                  alt="Join game QR code"
+                  className="h-28 w-28"
+                />
+              </div>
+              <div className="text-center text-xl font-semibold">
+                <div className="mb-1 text-base uppercase tracking-[0.25em] text-emerald-700">In lobby</div>
+                <div className="font-black tracking-[0.35em] text-emerald-800 text-3xl xl:text-5xl">
+                  {(activeLobby.code || gameMeta?.code || "------").toUpperCase()}
+                </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2 text-base font-semibold">
@@ -368,7 +387,7 @@ export default function Home() {
 
         {activeLobby && gameMeta && isRef ? (
           <div className="flex flex-col gap-3 rounded-2xl border border-cyan-300/60 bg-white p-6 shadow-[0_12px_50px_rgba(59,130,246,0.15)]">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-slate-900">Lobby status</div>
                 <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
@@ -427,19 +446,23 @@ export default function Home() {
         {!activeLobby ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_12px_40px_rgba(14,165,233,0.15)]">
             <div className="mb-4 h-1 rounded-full bg-gradient-to-r from-cyan-400 via-emerald-300 to-amber-300" />
-            <div className="flex gap-3">
+            <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-sm font-semibold shadow-inner sm:text-base">
               <button
                 onClick={() => setActiveTab("join")}
-                className={`rounded-full px-7 py-3 text-xl font-semibold ${
-                  activeTab === "join" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                className={`w-1/2 px-4 py-3 transition ${
+                  activeTab === "join"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 Join a game
               </button>
               <button
                 onClick={() => setActiveTab("host")}
-                className={`rounded-full px-7 py-3 text-xl font-semibold ${
-                  activeTab === "host" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                className={`w-1/2 px-4 py-3 transition ${
+                  activeTab === "host"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 Host a game
@@ -497,61 +520,61 @@ export default function Home() {
         ) : null}
 
         {activeLobby ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_rgba(14,165,233,0.15)]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
-              Lobby roster
-            </div>
-            {rosterStatus === "loading" ? (
-              <span className="text-xs text-slate-500">Loading…</span>
-            ) : rosterStatus === "error" ? (
-              <span className="text-xs text-rose-500">Error loading roster</span>
-            ) : (
-              <span className="text-xs text-slate-500">{rosterPlayers.length} player(s)</span>
-            )}
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {rosterPlayers.length === 0 && rosterStatus !== "loading" ? (
-              <div className="col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-base font-semibold text-slate-600">
-                No players yet. Share the code to get teammates in.
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_rgba(14,165,233,0.15)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
+                Lobby roster
               </div>
-            ) : (
-              rosterPlayers.map((player) => (
-                <div
-                  key={player.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-4"
-                >
-                  <div>
-                    <p className="text-xl font-semibold text-slate-900">{player.display_name}</p>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{player.role}</p>
-                    <p className="text-sm text-slate-600">Ready: {player.ready ? "Yes" : "No"}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    {isRef && player.id !== myPlayer?.id && player.role !== "ref" ? (
-                      <button
-                        onClick={() => handleKick(player.id)}
-                        className="rounded-md border border-rose-500/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-600 transition hover:bg-rose-50"
-                      >
-                        Kick
-                      </button>
-                    ) : null}
-                    <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
-                        player.ready
-                          ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300"
-                          : "bg-slate-200 text-slate-700 ring-1 ring-slate-300"
-                      }`}
-                    >
-                      {player.ready ? "Ready" : "Not ready"}
-                    </span>
-                  </div>
+              {rosterStatus === "loading" ? (
+                <span className="text-xs text-slate-500">Loading…</span>
+              ) : rosterStatus === "error" ? (
+                <span className="text-xs text-rose-500">Error loading roster</span>
+              ) : (
+                <span className="text-xs text-slate-500">{rosterPlayers.length} player(s)</span>
+              )}
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {rosterPlayers.length === 0 && rosterStatus !== "loading" ? (
+                <div className="col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-base font-semibold text-slate-600">
+                  No players yet. Share the code to get teammates in.
                 </div>
-              ))
-            )}
+              ) : (
+                rosterPlayers.map((player) => (
+                  <div
+                    key={player.id}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-4"
+                  >
+                    <div>
+                      <p className="text-xl font-semibold text-slate-900">{player.display_name}</p>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{player.role}</p>
+                      <p className="text-sm text-slate-600">Ready: {player.ready ? "Yes" : "No"}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      {isRef && player.id !== myPlayer?.id && player.role !== "ref" ? (
+                        <button
+                          onClick={() => handleKick(player.id)}
+                          className="rounded-md border border-rose-500/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-600 transition hover:bg-rose-50"
+                        >
+                          Kick
+                        </button>
+                      ) : null}
+                      <span
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                          player.ready
+                            ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300"
+                            : "bg-slate-200 text-slate-700 ring-1 ring-slate-300"
+                        }`}
+                      >
+                        {player.ready ? "Ready" : "Not ready"}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
       </div>
     </main>
   );
